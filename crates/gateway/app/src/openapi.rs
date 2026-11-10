@@ -30,6 +30,10 @@ mod tests;
 #[path = "openapi-validity-tests.rs"]
 mod validity_tests;
 
+#[cfg(test)]
+#[path = "openapi-conformance-tests.rs"]
+mod conformance_tests;
+
 mod describe;
 mod exclusions;
 

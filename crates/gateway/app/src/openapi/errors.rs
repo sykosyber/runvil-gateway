@@ -46,6 +46,45 @@ pub(super) enum Variant {
     UpstreamUnavailable,
 }
 
+/// Every variant the operation table can name, in a stable order.
+pub(super) fn all_variants() -> &'static [Variant] {
+    &[
+        Variant::Unauthorized,
+        Variant::Malformed,
+        Variant::UnknownModel,
+        Variant::KindMismatch,
+        Variant::InvalidVoice,
+        Variant::ModelLoading,
+        Variant::ModelProvisioning,
+        Variant::QueueFull,
+        Variant::QueueRejected,
+        Variant::UpstreamTransport,
+        Variant::UpstreamConnect,
+        Variant::UpstreamProtocol,
+        Variant::UpstreamServer,
+        Variant::UpstreamClient,
+        Variant::ModelUnavailable,
+        #[cfg(feature = "web-search")]
+        Variant::ToolNotConfigured,
+        Variant::Cache,
+        Variant::Blocking,
+        Variant::CacheMissing,
+        Variant::UpstreamRateLimited,
+        Variant::UpstreamUnavailable,
+    ]
+}
+
+/// The status and JSON body `variant` produces through `into_response`.
+pub(super) fn envelope_body(variant: Variant) -> Result<(u16, Value), String> {
+    let (error, _, _, variant_name, _) = sample(variant);
+    let response = error.into_response();
+    let status = response.status().as_u16();
+    let bytes = body_bytes(response.into_body())?;
+    let value = serde_json::from_slice(&bytes)
+        .map_err(|error| format!("{variant_name}: the envelope is not JSON: {error}"))?;
+    Ok((status, value))
+}
+
 /// The shared envelope schema. The description is `GatewayError::envelope`'s
 /// doc comment; the three builders emit this shape.
 pub(super) fn envelope_schema() -> Result<Value, String> {
