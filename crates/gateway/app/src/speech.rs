@@ -14,6 +14,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use gateway_config::ModelKind;
 use gateway_protocol::ProtocolError;
+use schemars::JsonSchema;
+use serde::Serialize;
 
 use crate::AppState;
 use crate::auth::AuthedCaller;
@@ -311,6 +313,26 @@ fn speech_fallback_mime(
     })
 }
 
+/// One voice in the `GET /v1/audio/voices` body.
+///
+/// `name` mirrors `id`: the catalog configures voices as bare strings with
+/// no separate display name.
+#[derive(Debug, JsonSchema, Serialize)]
+pub(crate) struct Voice {
+    /// The voice identifier clients send as `voice`.
+    id: String,
+    /// The display name. It mirrors `id`.
+    name: String,
+}
+
+/// The `GET /v1/audio/voices` body: the deduplicated, sorted voices under
+/// `voices`.
+#[derive(Debug, JsonSchema, Serialize)]
+pub(crate) struct VoicesReply {
+    /// The active profile's speech voices.
+    voices: Vec<Voice>,
+}
+
 /// Bearer-authed union of the active profile's speech voices for catalog
 /// bind: every `kind = "speech"` model's configured `voices`, deduplicated
 /// and sorted, as id-first `{"id", "name"}` entries under
@@ -325,7 +347,7 @@ fn speech_fallback_mime(
 async fn audio_voices(
     State(state): State<AppState>,
     _caller: AuthedCaller,
-) -> Result<Json<serde_json::Value>, GatewayError> {
+) -> Result<Json<VoicesReply>, GatewayError> {
     let routing = state.routing().await;
     let voices = routing
         .models()
@@ -334,9 +356,12 @@ async fn audio_voices(
         .flat_map(|model| model.capabilities.voices().iter())
         .collect::<BTreeSet<_>>()
         .into_iter()
-        .map(|voice| serde_json::json!({ "id": voice, "name": voice }))
+        .map(|voice| Voice {
+            id: voice.clone(),
+            name: voice.clone(),
+        })
         .collect::<Vec<_>>();
-    Ok(Json(serde_json::json!({ "voices": voices })))
+    Ok(Json(VoicesReply { voices }))
 }
 
 /// Generic speech lifecycle facts included in Gateway operational status.
