@@ -36,7 +36,7 @@ isProject: false
 
 **Status: implemented.** The decisions below are the ones the code follows. Open questions and contradictions are recorded and left unresolved. The audit map at the end names the source line of every operation and component in `crates/gateway/app/openapi.json`.
 
-## How to read the citations
+**How to read the citations.**
 
 Every claim cites `file:line` or `file:start-end`. Paths are relative to the repository root, with these prefixes:
 
@@ -541,7 +541,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-1>
 
-### Step 1: Bring the seven external mounts into the registry [pending]
+### Step 1: Bring the seven external mounts into the registry [completed]
 
 - Contract items: Decision D3; Functional Specification, "Counts".
 - Artifacts:
@@ -557,7 +557,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-2>
 
-### Step 2: Derive JsonSchema on the in-scope wire types [pending]
+### Step 2: Derive JsonSchema on the in-scope wire types [completed]
 
 - Contract items: Technical Design, "File and public API changes"; Decisions D14 and D17.
 - Artifacts:
@@ -572,7 +572,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-3>
 
-### Step 3: Type the in-scope JSON literal replies [pending]
+### Step 3: Type the in-scope JSON literal replies [completed]
 
 - Contract items: Decisions D9 and D19; missing doc M5.
 - Artifacts: `HealthReply`, `VoicesReply` and `Voice`, `CacheDeletedReply`, and the cache `downloading` event type. Fields are declared in sorted key order, with doc comments taken from the handler docs that describe them. The cache hit reply and the terminal `ready` and `error` events stay `json!` (Decision D9, open question O16) and get schema-only types instead.
@@ -584,7 +584,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-4>
 
-### Step 4: Generate, commit, and pin the document [pending]
+### Step 4: Generate, commit, and pin the document [completed]
 
 - Contract items: Technical Design, "Document assembly", "Scope and exclusions", "The extension marking convention", and "Artifact, rendering, and bless"; Decisions D2, D4, D6, D10-D13, D18, D20, and D21.
 - Artifacts:
@@ -599,7 +599,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-5>
 
-### Step 5: Validate the document as OpenAPI 3.1 [pending]
+### Step 5: Validate the document as OpenAPI 3.1 [completed]
 
 - Contract items: Decision D15; Testing Plan, "Validity".
 - Artifacts:
@@ -613,7 +613,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-6>
 
-### Step 6: Check feature markers [pending]
+### Step 6: Check feature markers [completed]
 
 - Contract items: Decision D7.
 - Artifacts: the reduced-build equation test, the `local` source check, and the new CI step.
@@ -624,7 +624,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-7>
 
-### Step 7: Conformance [pending]
+### Step 7: Conformance [completed]
 
 - Contract items: Testing Plan, "Conformance".
 - Artifacts: the conformance tests and the unexercised-status report.
@@ -635,7 +635,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 <step-8>
 
-### Step 8: Audit map and final report [pending]
+### Step 8: Audit map and final report [completed]
 
 - Contract items: the Definition of Done's audit map; contradictions C1-C13; missing docs M1-M6.
 - Artifacts:
@@ -649,7 +649,7 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 
 </execution-plan>
 
-## Audit map
+**Audit map.**
 
 Printed by `AUDIT_OPENAPI=1 cargo test -p gateway --lib openapi::audit -- --nocapture` on the default build. Line numbers move with the source, so this copy is a record of the implementation, not a second artifact.
 
