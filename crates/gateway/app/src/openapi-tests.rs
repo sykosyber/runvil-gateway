@@ -124,28 +124,24 @@ fn every_operation_is_bound_to_the_handler_it_names() {
     }
 }
 
+#[cfg(feature = "stt")]
 #[test]
 fn the_multipart_fields_match_parse_form() {
     let fields = source::multipart_fields("crates/gateway/stt/api/src/batch.rs")
         .unwrap_or_else(|error| panic!("{error}"));
     let document = generated();
-    #[cfg(feature = "stt")]
-    {
-        let properties = &document["paths"]["/v1/audio/transcriptions"]["post"]["requestBody"]["content"]
-            ["multipart/form-data"]["schema"]["properties"];
-        let mut documented: Vec<&str> = properties
-            .as_object()
-            .expect("multipart properties")
-            .keys()
-            .map(String::as_str)
-            .collect();
-        documented.sort_unstable();
-        let mut parsed = fields.clone();
-        parsed.sort();
-        assert_eq!(documented, parsed, "a multipart field was added or dropped");
-    }
-    #[cfg(not(feature = "stt"))]
-    let _ = fields;
+    let properties = &document["paths"]["/v1/audio/transcriptions"]["post"]["requestBody"]["content"]
+        ["multipart/form-data"]["schema"]["properties"];
+    let mut documented: Vec<&str> = properties
+        .as_object()
+        .expect("multipart properties")
+        .keys()
+        .map(String::as_str)
+        .collect();
+    documented.sort_unstable();
+    let mut parsed = fields;
+    parsed.sort();
+    assert_eq!(documented, parsed, "a multipart field was added or dropped");
 }
 
 #[test]
@@ -158,6 +154,11 @@ fn the_committed_document_matches_the_generated_one() {
         !bless || full_feature_build(),
         "BLESS_OPENAPI needs local, web-search, config-ui, and stt; this build is missing at least one"
     );
+    // The committed file describes the default build. A reduced build is
+    // checked by `stripping_feature_markers_matches_a_reduced_build`.
+    if !full_feature_build() {
+        return;
+    }
     let committed = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -267,6 +268,64 @@ fn head_follows_get_except_on_the_realtime_upgrade() {
         assert!(
             head_body.is_empty(),
             "HEAD {path} body is empty, was {head_body:?}"
+        );
+    }
+}
+
+fn committed() -> serde_json::Value {
+    let path = artifact_path();
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    serde_json::from_str(&text).unwrap_or_else(|error| panic!("{}: {error}", path.display()))
+}
+
+#[test]
+fn stripping_feature_markers_matches_a_reduced_build() {
+    let committed = committed();
+    let stripped = super::strip::strip_reduced(&committed);
+    if full_feature_build() {
+        assert_ne!(
+            stripped, committed,
+            "the default document should carry web-search or stt elements to strip"
+        );
+        return;
+    }
+    let generated = generated();
+    if stripped != generated {
+        let changes = diff(&stripped, &generated, 50);
+        panic!(
+            "the reduced document is not the committed one with web-search, stt, and config-ui removed:\n{}",
+            changes.join("\n")
+        );
+    }
+}
+
+#[test]
+fn cache_routes_are_gated_on_local_and_marked() {
+    let registry = source::root().join("crates/gateway/app/src/registry.rs");
+    let text = std::fs::read_to_string(&registry)
+        .unwrap_or_else(|error| panic!("{}: {error}", registry.display()));
+    let needle = "routes.extend_from_slice(cache::ROUTES)";
+    let position = text
+        .find(needle)
+        .unwrap_or_else(|| panic!("{needle} is not in registry.rs"));
+    let start = text[..position]
+        .rfind("#[cfg")
+        .unwrap_or_else(|| panic!("cache routes have no cfg attribute"));
+    let attribute = text[start..].lines().next().unwrap_or("");
+    assert!(
+        attribute.contains("feature = \"local\""),
+        "cache routes are compiled in by: {attribute}"
+    );
+    let document = generated();
+    for (path, method) in [
+        ("/v1/cache", "get"),
+        ("/v1/cache", "post"),
+        ("/v1/cache/{sha256}", "delete"),
+    ] {
+        assert_eq!(
+            document["paths"][path][method]["x-runvil-feature"], "local",
+            "{method} {path} must carry x-runvil-feature local"
         );
     }
 }

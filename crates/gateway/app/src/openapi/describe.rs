@@ -93,20 +93,39 @@ const LOOSE: &[&str] = &[
     "#/components/schemas/RerankResponse",
     "#/components/schemas/RerankResponse/properties/results/items",
     "#/components/schemas/SpeechRequest",
-    "#/components/schemas/VerboseJsonTranscription/properties/words/items",
 ];
+
+/// Loose schemas that exist only in an `stt` build. A reduced build does not
+/// generate them, so they are not stale entries there.
+#[cfg(feature = "stt")]
+const LOOSE_STT: &[&str] =
+    &["#/components/schemas/VerboseJsonTranscription/properties/words/items"];
+
+fn loose_allowlist() -> Vec<&'static str> {
+    #[cfg(feature = "stt")]
+    {
+        let mut allowlist = LOOSE.to_vec();
+        allowlist.extend(LOOSE_STT);
+        allowlist
+    }
+    #[cfg(not(feature = "stt"))]
+    {
+        LOOSE.to_vec()
+    }
+}
 
 pub(super) fn check_loose(document: &Value) -> Result<(), Vec<String>> {
     let found = loose_pointers(document);
+    let allowlist = loose_allowlist();
     let mut errors = Vec::new();
     for pointer in &found {
-        if !LOOSE.contains(&pointer.as_str()) {
+        if !allowlist.contains(&pointer.as_str()) {
             errors.push(format!(
                 "loose schema at {pointer} is not allowlisted; it needs a real schema or an entry in LOOSE"
             ));
         }
     }
-    for pointer in LOOSE {
+    for pointer in &allowlist {
         if !found.iter().any(|found| found == pointer) {
             errors.push(format!(
                 "allowlist entry {pointer} is not a loose schema; remove it from LOOSE"
@@ -121,7 +140,7 @@ pub(super) fn check_loose(document: &Value) -> Result<(), Vec<String>> {
 }
 
 pub(super) fn mark_pass_through(document: &mut Value) {
-    for pointer in LOOSE {
+    for pointer in loose_allowlist() {
         let Some(node) = at_mut(document, pointer) else {
             continue;
         };

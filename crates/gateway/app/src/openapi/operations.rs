@@ -76,9 +76,12 @@ const RELAY: &str = "crates/gateway/app/src/relay.rs";
 const SPEECH: &str = "crates/gateway/app/src/speech.rs";
 const MODELS: &str = "crates/gateway/app/src/models.rs";
 const HEALTH: &str = "crates/gateway/app/src/health.rs";
+#[cfg(feature = "web-search")]
 const WEB: &str = "crates/gateway/app/src/web_search.rs";
 const CACHE: &str = "crates/gateway/app/src/cache.rs";
+#[cfg(feature = "stt")]
 const BATCH: &str = "crates/gateway/stt/api/src/batch.rs";
+#[cfg(feature = "stt")]
 const REALTIME: &str = "crates/gateway/stt/api/src/realtime/route.rs";
 
 const ROUTED: &[Variant] = &[
@@ -279,7 +282,7 @@ fn speech_operations() -> Vec<Operation> {
             body: Some(json_request(schemas::speech_request)),
             success: vec![Content {
                 media: "application/octet-stream",
-                schema: audio_schema,
+                schema: schemas::audio_schema,
                 contract: Contract::Response,
                 doc: Some((SPEECH, "relay_audio")),
                 events: &[],
@@ -490,10 +493,4 @@ fn stt_operations() -> Vec<Operation> {
             path_param: None,
         },
     ]
-}
-
-/// The speech response is opaque bytes. The schema names that, and the
-/// media type the handler actually sends is described beside it.
-fn audio_schema(_generator: &mut SchemaGenerator) -> Value {
-    serde_json::json!({ "type": "string" })
 }

@@ -48,7 +48,8 @@
           "status",
           "total"
         ],
-        "type": "object"
+        "type": "object",
+        "x-runvil-feature": "local"
       },
       "CacheEntry": {
         "description": "One entry of the cache listing: a blob plus the source it was fetched from.",
@@ -97,7 +98,8 @@
           "message",
           "status"
         ],
-        "type": "object"
+        "type": "object",
+        "x-runvil-feature": "local"
       },
       "CacheReadyReply": {
         "description": "A ready cache blob: the hit body and the stream's terminal `ready` event\nshare this shape. The handlers still build it with `json!`, because a\n`PathBuf` that is not valid UTF-8 panics inside `json!` and a typed reply\nwould answer an error instead. The type exists so the description's schema\ncomes from the same fields.",

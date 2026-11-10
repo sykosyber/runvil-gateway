@@ -21,6 +21,7 @@ pub(super) struct ExtensionField {
 /// Where an extension field's description is written.
 pub(super) enum FieldDoc {
     /// The doc comment of this item.
+    #[cfg(feature = "stt")]
     Item(&'static str),
     /// The module-doc paragraph that contains this text.
     ModuleParagraph(&'static str),
@@ -54,6 +55,7 @@ pub(super) fn extension_fields(fields: &[ExtensionField]) -> Result<Vec<Value>, 
 
 fn extension_field(field: &ExtensionField) -> Result<Value, String> {
     let description = match field.doc {
+        #[cfg(feature = "stt")]
         FieldDoc::Item(item) => documented(field.file, item)?,
         FieldDoc::ModuleParagraph(needle) => module_paragraph(field.file, needle)?,
     };

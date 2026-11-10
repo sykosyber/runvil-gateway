@@ -9,6 +9,7 @@ mod operations;
 mod render;
 mod schemas;
 mod source;
+mod strip;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -247,6 +248,12 @@ fn media_entry(
     };
     let schema = (content.schema)(generator);
     record_refs(&schema, feature, usage);
+    for event in content.events {
+        usage
+            .entry((*event).to_owned())
+            .or_default()
+            .insert(feature);
+    }
     let mut entry = json!({ "schema": schema });
     if let Some((file, item)) = content.doc {
         let doc = source::doc(file, item).map_err(|error| error.message(file, item))?;

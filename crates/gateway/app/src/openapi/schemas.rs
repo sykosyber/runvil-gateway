@@ -16,6 +16,12 @@ use crate::wire::{
     RerankResponse, SpeechRequest,
 };
 
+/// The speech response is opaque bytes. The schema names that, and the
+/// media type the handler actually sends is described beside it.
+pub(super) fn audio_schema(_generator: &mut SchemaGenerator) -> Value {
+    serde_json::json!({ "type": "string" })
+}
+
 fn schema<T: JsonSchema + ?Sized>(generator: &mut SchemaGenerator) -> Value {
     generator.subschema_for::<T>().to_value()
 }
