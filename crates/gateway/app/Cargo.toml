@@ -147,6 +147,8 @@ test-fixtures = ["local", "gateway-local/test-fixtures", "dep:anyhow"]
 
 [dev-dependencies]
 anyhow.workspace = true
+proc-macro2.workspace = true
+syn.workspace = true
 # The crate dev-depends on itself so every test target builds the library
 # with test-fixtures enabled, without gate commands needing a --features
 # flag: the integration suites drive the speech relay's test-scaled bounds.

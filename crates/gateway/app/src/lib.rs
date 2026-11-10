@@ -494,3 +494,6 @@ fn build_router(state: AppState, bound: Option<std::net::SocketAddr>) -> Router 
 #[cfg(test)]
 #[path = "loopback-tests.rs"]
 mod loopback_tests;
+
+#[cfg(test)]
+mod openapi;

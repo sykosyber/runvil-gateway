@@ -65,6 +65,8 @@ impl CatalogModelInfo {
 pub(crate) struct SpeechCatalogModelInfo {
     id: String,
     object: &'static str,
+    /// `transcription`.
+    #[schemars(extend("x-runvil-extension" = true), extend("x-runvil-opt-in" = false))]
     kind: &'static str,
 }
 
