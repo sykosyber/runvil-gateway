@@ -93,9 +93,12 @@ enum TranscriptionResponse {
     VerboseJson(VerboseJsonTranscription),
 }
 
+/// The batch transcription route's path.
+pub const TRANSCRIPTIONS_PATH: &str = "/v1/audio/transcriptions";
+
 pub(crate) fn routes(state: GenerationState) -> Router {
     Router::new()
-        .route("/v1/audio/transcriptions", post(handler))
+        .route(TRANSCRIPTIONS_PATH, post(handler))
         .layer(axum::extract::DefaultBodyLimit::max(BODY_LIMIT))
         .with_state(state)
 }
