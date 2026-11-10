@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 /// request is built. `never` and `always` mean the backend ignores a
 /// per-call switch; `switchable` means the client may emit
 /// `chat_template_kwargs.enable_thinking`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, JsonSchema, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum ThinkingMode {
@@ -82,7 +82,7 @@ impl fmt::Display for ModelKind {
 /// can shape requests before sending them. The effort knobs are chat-only
 /// and require a `thinking` mode other than `never`; the `voices` list is
 /// speech-only.
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, JsonSchema, Serialize, Deserialize)]
 #[non_exhaustive]
 pub struct Capabilities {
     /// Max output tokens the model can emit per completion. Must not exceed
@@ -178,7 +178,7 @@ impl Capabilities {
 }
 
 /// One catalogued model, with Runvil extensions beside the OpenAI `id`.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, JsonSchema, Serialize)]
 pub struct ModelInfo {
     /// The caller-facing model name (`[[model]].name`).
     pub id: String,

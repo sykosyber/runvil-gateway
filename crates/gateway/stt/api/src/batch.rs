@@ -9,6 +9,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use gateway_stt_engine::{DecodeRequest, EnginePolicy};
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::artifacts::SpeechError;
@@ -46,14 +47,14 @@ fn default_granularities() -> Vec<TimestampGranularity> {
 }
 
 /// A basic OpenAI transcription response.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, JsonSchema, Serialize)]
 struct JsonTranscription {
     /// The decoded transcript.
     pub text: String,
 }
 
 /// One clip-level segment in a verbose transcription response.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, JsonSchema, Serialize)]
 struct TranscriptionSegment {
     /// Zero-based segment identifier.
     pub id: u32,
@@ -66,7 +67,7 @@ struct TranscriptionSegment {
 }
 
 /// An OpenAI verbose transcription response.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, JsonSchema, Serialize)]
 struct VerboseJsonTranscription {
     /// Requested task name.
     pub task: &'static str,
@@ -84,7 +85,7 @@ struct VerboseJsonTranscription {
 }
 
 /// A successful transcription in the requested OpenAI JSON dialect.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, JsonSchema, Serialize)]
 #[serde(untagged)]
 enum TranscriptionResponse {
     /// The compact `json` response.
@@ -95,6 +96,17 @@ enum TranscriptionResponse {
 
 /// The batch transcription route's path.
 pub const TRANSCRIPTIONS_PATH: &str = "/v1/audio/transcriptions";
+
+/// The JSON Schema of a successful transcription body, either the `json` or
+/// the `verbose_json` shape.
+///
+/// `generator` collects the component schemas the response references, so
+/// the caller renders them beside the response.
+pub fn transcription_response_schema(
+    generator: &mut schemars::SchemaGenerator,
+) -> schemars::Schema {
+    generator.subschema_for::<TranscriptionResponse>()
+}
 
 pub(crate) fn routes(state: GenerationState) -> Router {
     Router::new()

@@ -21,6 +21,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get};
 use axum::{Json, Router};
 use gateway_progress::Activity;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
@@ -75,8 +76,8 @@ async fn list_cache(
 }
 
 /// The `POST /v1/cache` request body.
-#[derive(Debug, Deserialize)]
-struct CacheRequest {
+#[derive(Debug, Deserialize, JsonSchema)]
+pub(crate) struct CacheRequest {
     /// The http(s) URL to download.
     source: String,
     /// Optional SHA-256 pin, verified against the downloaded bytes.
