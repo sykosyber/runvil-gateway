@@ -18,7 +18,7 @@ fn artifact_path() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(ARTIFACT)
 }
 
-fn generated() -> serde_json::Value {
+pub(super) fn generated() -> serde_json::Value {
     match document() {
         Ok(document) => document,
         Err(errors) => panic!("{}", errors.join("\n")),
@@ -53,6 +53,10 @@ fn every_mounted_route_is_documented_or_excluded() {
         }
     }
     for (path, method) in &documented {
+        assert!(
+            !path.contains("{*"),
+            "{path} uses an axum wildcard template, which OpenAPI cannot express"
+        );
         let mounted = registry::all().into_iter().any(|route| {
             route.path == path && route.methods.iter().any(|item| item.as_str() == method)
         });

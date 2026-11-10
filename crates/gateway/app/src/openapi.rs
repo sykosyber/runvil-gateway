@@ -25,6 +25,10 @@ type Usage = BTreeMap<String, BTreeSet<Option<&'static str>>>;
 #[path = "openapi-tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "openapi-validity-tests.rs"]
+mod validity_tests;
+
 mod describe;
 mod exclusions;
 
