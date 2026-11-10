@@ -7,34 +7,34 @@ todos:
     status: completed
   - id: enumerable-surface
     content: Bring the seven mounts outside the registry (two STT routes, five config UI assets) into registry::all() through path constants their own crates export
-    status: pending
+    status: completed
   - id: schema-derives
     content: Derive JsonSchema on the in-scope wire types, with the speech length and range bounds read from the constants validate() uses; no serde change
-    status: pending
+    status: completed
   - id: typed-literals
     content: Replace the in-scope json! reply literals with typed structs that serialize byte-identically, each pinned by a byte-equality test
-    status: pending
+    status: completed
   - id: generator
     content: Add the test-only generator, the coverage test, the committed openapi.json, and the drift test with BLESS_OPENAPI
-    status: pending
+    status: completed
   - id: validity
     content: Vendor the OAS 3.1 schemas, add jsonschema as a dev-dependency, and validate the document plus its structural rules
-    status: pending
+    status: completed
   - id: feature-shapes
     content: Check feature markers in the reduced test build and from registry cfg attributes; add the CI step
-    status: pending
+    status: completed
   - id: conformance
     content: Validate real route responses against the spec's schemas for every exercised status
-    status: pending
+    status: completed
   - id: audit-map
     content: Print the audit map, update the READMEs, and run every gate
-    status: pending
+    status: completed
 isProject: false
 ---
 
 # Generate and pin an OpenAPI 3.1 description of the Gateway
 
-**Status: Phase 1 complete, awaiting review.** Nothing below is implemented. The decisions in the Decision Record are recommendations until Mateo approves them.
+**Status: implemented.** The decisions below are the ones the code follows. Open questions and contradictions are recorded and left unresolved. The audit map at the end names the source line of every operation and component in `crates/gateway/app/openapi.json`.
 
 ## How to read the citations
 
@@ -648,3 +648,58 @@ Phase 2 starts only after approval. Each step is one commit that leaves every ex
 </step-8>
 
 </execution-plan>
+
+## Audit map
+
+Printed by `AUDIT_OPENAPI=1 cargo test -p gateway --lib openapi::audit -- --nocapture` on the default build. Line numbers move with the source, so this copy is a record of the implementation, not a second artifact.
+
+```text
+post /v1/audio/speech  crates/gateway/app/src/speech.rs:58  audio_speech
+post /v1/audio/transcriptions  crates/gateway/stt/api/src/batch.rs:118  handler
+get /v1/audio/voices  crates/gateway/app/src/speech.rs:347  audio_voices
+get /v1/cache  crates/gateway/app/src/cache.rs:67  list_cache
+post /v1/cache  crates/gateway/app/src/cache.rs:158  post_cache
+delete /v1/cache/{sha256}  crates/gateway/app/src/cache.rs:215  delete_cache
+post /v1/chat/completions  crates/gateway/app/src/relay.rs:81  chat_completions
+post /v1/embeddings  crates/gateway/app/src/relay.rs:216  embeddings
+get /v1/models  crates/gateway/app/src/models.rs:74  list_models
+get /v1/realtime  crates/gateway/stt/api/src/realtime/route.rs:133  upgrade
+post /v1/rerank  crates/gateway/app/src/relay.rs:245  rerank
+post /v1/tools/web_search  crates/gateway/app/src/web_search.rs:33  web_search
+schema CacheDeletedReply  crates/gateway/app/src/cache.rs:80  CacheDeletedReply
+schema CacheDownloadEvent  crates/gateway/app/src/cache.rs:90  CacheDownloadEvent
+schema CacheEntry  crates/gateway/local/src/cache.rs:92  CacheEntry
+schema CacheErrorEvent  crates/gateway/app/src/cache.rs:117  CacheErrorEvent
+schema CacheReadyReply  crates/gateway/app/src/cache.rs:106  CacheReadyReply
+schema CacheRequest  crates/gateway/app/src/cache.rs:126  CacheRequest
+schema CatalogModelInfo  crates/gateway/app/src/models.rs:39  CatalogModelInfo
+schema CatalogModelsResponse  crates/gateway/app/src/models.rs:29  CatalogModelsResponse
+schema ChatChunk  crates/gateway/protocol/src/wire.rs:197  ChatChunk
+schema ChatChunkChoice  crates/gateway/protocol/src/wire.rs:232  ChatChunkChoice
+schema ChatRequest  crates/gateway/protocol/src/wire.rs:33  ChatRequest
+schema ChatResponse  crates/gateway/protocol/src/wire.rs:129  ChatResponse
+schema EmbeddingInput  crates/gateway/protocol/src/wire/embedding.rs:11  EmbeddingInput
+schema EmbeddingRequest  crates/gateway/protocol/src/wire/embedding.rs:20  EmbeddingRequest
+schema EmbeddingResponse  crates/gateway/protocol/src/wire/embedding.rs:67  EmbeddingResponse
+schema ErrorEnvelope  crates/gateway/app/src/error.rs:327  envelope
+schema HealthReply  crates/gateway/app/src/health.rs:24  HealthReply
+schema ModelInfo  crates/gateway-api-types/src/metadata.rs:191  ModelInfo
+schema ModelKind  crates/gateway-api-types/src/metadata.rs:44  ModelKind
+schema RerankRequest  crates/gateway/protocol/src/wire/rerank.rs:10  RerankRequest
+schema RerankResponse  crates/gateway/protocol/src/wire/rerank.rs:62  RerankResponse
+schema SpeechRequest  crates/gateway/protocol/src/wire/speech.rs:72  SpeechRequest
+schema SpeechResponseFormat  crates/gateway/protocol/src/wire/speech.rs:40  SpeechResponseFormat
+schema SpeechStreamFormat  crates/gateway/protocol/src/wire/speech.rs:62  SpeechStreamFormat
+schema SpeechVoice  crates/gateway/protocol/src/wire/speech.rs:23  SpeechVoice
+schema ThinkingMode  crates/gateway-api-types/src/metadata.rs:22  ThinkingMode
+schema Voice  crates/gateway/app/src/speech.rs:321  Voice
+schema VoicesReply  crates/gateway/app/src/speech.rs:331  VoicesReply
+schema JsonTranscription  crates/gateway/stt/api/src/batch.rs:51  JsonTranscription
+schema SpeechCatalogModelInfo  crates/gateway/app/src/models.rs:65  SpeechCatalogModelInfo
+schema TranscriptionResponse  crates/gateway/stt/api/src/batch.rs:90  TranscriptionResponse
+schema TranscriptionSegment  crates/gateway/stt/api/src/batch.rs:58  TranscriptionSegment
+schema VerboseJsonTranscription  crates/gateway/stt/api/src/batch.rs:71  VerboseJsonTranscription
+schema SearchResult  crates/gateway/web-search/src/service.rs:125  SearchResult
+schema WebSearchRequest  crates/gateway/web-search/src/service.rs:86  WebSearchRequest
+schema WebSearchResponse  crates/gateway/web-search/src/service.rs:116  WebSearchResponse
+```

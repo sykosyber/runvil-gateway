@@ -131,6 +131,46 @@ pub(super) fn module_doc(file: &str) -> Result<String, DocError> {
     doc_lines(&parsed(file)?.attrs).ok_or(DocError::Undocumented)
 }
 
+/// The line `item` is declared on. Fails when the span carries no location.
+pub(super) fn item_line(file: &str, item: &str) -> Result<usize, String> {
+    let parsed = parsed(file).map_err(|error| error.message(file, item))?;
+    for found in parsed.items {
+        let located = match found {
+            Item::Fn(function) => Some((function.sig.ident.to_string(), function.sig.ident.span())),
+            Item::Struct(found) => Some((found.ident.to_string(), found.ident.span())),
+            Item::Enum(found) => Some((found.ident.to_string(), found.ident.span())),
+            Item::Const(found) => Some((found.ident.to_string(), found.ident.span())),
+            Item::Impl(found) => {
+                for inner in found.items {
+                    let syn::ImplItem::Fn(function) = inner else {
+                        continue;
+                    };
+                    if function.sig.ident == item {
+                        return line_of(file, item, function.sig.ident.span());
+                    }
+                }
+                None
+            }
+            _ => None,
+        };
+        if let Some((name, span)) = located
+            && name == item
+        {
+            return line_of(file, item, span);
+        }
+    }
+    Err(format!("{file}: no item `{item}`"))
+}
+
+fn line_of(file: &str, item: &str, span: proc_macro2::Span) -> Result<usize, String> {
+    let line = span.start().line;
+    if line == 0 {
+        Err(format!("{file}: `{item}` has no source location"))
+    } else {
+        Ok(line)
+    }
+}
+
 /// The `.route` bindings in the `routes` function of `file`.
 pub(super) fn mounts(file: &str) -> Result<Vec<Mount>, String> {
     let parsed = parsed(file).map_err(|error| error.message(file, "routes"))?;
