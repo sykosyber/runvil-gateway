@@ -225,6 +225,19 @@ fn audit() {
                 .unwrap_or_else(|| panic!("{source_ref} is not file#item"));
             let line = source::item_line(file, item_name).unwrap_or_else(|error| panic!("{error}"));
             lines.push(format!("{method} {path}  {file}:{line}  {item_name}"));
+            let responses = operation["responses"].as_object().expect("responses");
+            for (status, response) in responses {
+                for source_ref in sources(&response["x-runvil-source"]) {
+                    let (file, item_name) = source_ref
+                        .split_once('#')
+                        .unwrap_or_else(|| panic!("{source_ref} is not file#item"));
+                    let line = source::item_line(file, item_name)
+                        .unwrap_or_else(|error| panic!("{method} {path} {status}: {error}"));
+                    lines.push(format!(
+                        "{method} {path} {status}  {file}:{line}  {item_name}"
+                    ));
+                }
+            }
         }
     }
     let schemas = document["components"]["schemas"]
@@ -249,5 +262,17 @@ fn audit() {
         for line in &lines {
             println!("{line}");
         }
+    }
+}
+
+/// A response's `x-runvil-source`: one string, a list after a merge, or none.
+fn sources(value: &serde_json::Value) -> Vec<&str> {
+    match value {
+        serde_json::Value::String(single) => vec![single.as_str()],
+        serde_json::Value::Array(items) => items
+            .iter()
+            .map(|item| item.as_str().expect("a source is a string"))
+            .collect(),
+        _ => Vec::new(),
     }
 }

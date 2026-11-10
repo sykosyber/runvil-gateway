@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use super::errors::Variant;
 use super::fields::{ExtensionField, FieldDoc};
-use super::schemas;
+use super::{schemas, success};
 
 /// Which generator a schema is built with.
 #[derive(Clone, Copy)]
@@ -158,17 +158,18 @@ fn sse(
     }
 }
 
-/// Every in-scope operation in this build.
-pub(super) fn operations() -> Vec<Operation> {
+/// Every in-scope operation in this build, or the first media type that could
+/// not be read from the code.
+pub(super) fn operations() -> Result<Vec<Operation>, String> {
     let mut operations = relay_operations();
-    operations.extend(speech_operations());
+    operations.extend(speech_operations()?);
     #[cfg(feature = "web-search")]
     operations.push(web_search_operation());
     #[cfg(feature = "local")]
     operations.extend(cache_operations());
     #[cfg(feature = "stt")]
     operations.extend(stt_operations());
-    operations
+    Ok(operations)
 }
 
 fn relay_operations() -> Vec<Operation> {
@@ -264,8 +265,8 @@ fn relay_operations() -> Vec<Operation> {
     ]
 }
 
-fn speech_operations() -> Vec<Operation> {
-    vec![
+fn speech_operations() -> Result<Vec<Operation>, String> {
+    Ok(vec![
         Operation {
             path: "/v1/audio/speech",
             method: Method::POST,
@@ -280,14 +281,7 @@ fn speech_operations() -> Vec<Operation> {
             websocket: false,
             extension_fields: &[],
             body: Some(json_request(schemas::speech_request)),
-            success: vec![Content {
-                media: "application/octet-stream",
-                schema: schemas::audio_schema,
-                contract: Contract::Response,
-                doc: Some((SPEECH, "relay_audio")),
-                events: &[],
-                multipart: false,
-            }],
+            success: success::speech_audio()?,
             success_status: 200,
             errors: SPEECH_ERRORS,
             path_param: None,
@@ -330,7 +324,7 @@ fn speech_operations() -> Vec<Operation> {
             errors: &[],
             path_param: None,
         },
-    ]
+    ])
 }
 
 #[cfg(feature = "web-search")]

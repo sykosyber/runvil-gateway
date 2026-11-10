@@ -191,11 +191,11 @@ fn relay_audio(
         rx.recv().await.map(|item| (item, rx))
     });
     let mut response = Response::new(Body::from_stream(relayed));
+    let fallback = || HeaderValue::from_static(speech_fallback_mime(format, stream_format));
     let content_type = if streamed.content_type.is_empty() {
-        speech_fallback_mime(format, stream_format)
+        fallback()
     } else {
-        HeaderValue::from_str(&streamed.content_type)
-            .unwrap_or_else(|_| speech_fallback_mime(format, stream_format))
+        HeaderValue::from_str(&streamed.content_type).unwrap_or_else(|_| fallback())
     };
     response.headers_mut().insert(CONTENT_TYPE, content_type);
     response
@@ -293,14 +293,14 @@ fn relay_terminal(message: &'static str) -> ProtocolError {
 /// omits it or sends an invalid one: the framing selector first, so an SSE
 /// stream is labeled `text/event-stream` and never an audio type, then the
 /// requested format's MIME type (the OpenAI spellings).
-fn speech_fallback_mime(
+pub(crate) fn speech_fallback_mime(
     format: SpeechResponseFormat,
     stream_format: Option<SpeechStreamFormat>,
-) -> HeaderValue {
+) -> &'static str {
     if matches!(stream_format, Some(SpeechStreamFormat::Sse)) {
-        return HeaderValue::from_static("text/event-stream");
+        return "text/event-stream";
     }
-    HeaderValue::from_static(match format {
+    match format {
         SpeechResponseFormat::Mp3 => "audio/mpeg",
         SpeechResponseFormat::Opus => "audio/ogg",
         SpeechResponseFormat::Aac => "audio/aac",
@@ -310,7 +310,7 @@ fn speech_fallback_mime(
         // `SpeechResponseFormat` is `#[non_exhaustive]` in `gateway-protocol`;
         // an encoding without a spelling here is labeled as opaque bytes.
         _ => "application/octet-stream",
-    })
+    }
 }
 
 /// One voice in the `GET /v1/audio/voices` body.

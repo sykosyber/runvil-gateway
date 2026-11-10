@@ -5,11 +5,13 @@
 
 mod errors;
 mod fields;
+mod merge;
 mod operations;
 mod render;
 mod schemas;
 mod source;
 mod strip;
+mod success;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -17,6 +19,7 @@ use axum::http::Method;
 use schemars::generate::{SchemaGenerator, SchemaSettings};
 use serde_json::{Map, Value, json};
 
+use self::merge::merge_response;
 use self::operations::{Content, Contract, Operation};
 use self::render::object;
 
@@ -44,7 +47,7 @@ mod exclusions;
 /// The document, or every problem found while building it.
 pub(super) fn document() -> Result<Value, Vec<String>> {
     let mut errors = Vec::new();
-    let operations = operations::operations();
+    let operations = operations::operations().map_err(|error| vec![error])?;
     let mut request = generator(Contract::Request);
     let mut response = generator(Contract::Response);
     let mut usage = Usage::new();
@@ -220,23 +223,28 @@ fn success_and_errors(
         variants.push(errors::Variant::Unauthorized);
     }
     for (key, value) in errors::responses(&variants)? {
-        merge_response(&mut responses, key, value);
+        merge_response(&mut responses, key, value)?;
     }
-    merge_response(&mut responses, "403".to_owned(), errors::host_wall()?);
-    if !operation.websocket {
+    merge_response(&mut responses, "403".to_owned(), errors::host_wall()?)?;
+    let success = if operation.websocket {
+        merge_response(&mut responses, "403".to_owned(), errors::realtime_origin()?)?;
+        success::upgrade()?
+    } else {
         let mut content = object();
         for entry in &operation.success {
             let media = media_entry(entry, request, response, usage, operation.feature)?;
             content.insert(entry.media.to_owned(), media);
         }
-        responses.insert(
-            operation.success_status.to_string(),
-            json!({
-                "content": content,
-                "description": fields::handler_doc(operation)?
-            }),
-        );
-    }
+        json!({
+            "content": content,
+            "description": fields::handler_doc(operation)?
+        })
+    };
+    merge_response(
+        &mut responses,
+        operation.success_status.to_string(),
+        success,
+    )?;
     Ok(responses)
 }
 
@@ -342,22 +350,6 @@ fn intent_parameter() -> Result<Value, String> {
         "required": true,
         "schema": { "enum": [accepted], "type": "string" }
     }))
-}
-
-fn merge_response(responses: &mut Map<String, Value>, key: String, value: Value) {
-    match responses.get_mut(&key) {
-        Some(existing) => {
-            let left = existing["description"].as_str().unwrap_or("").to_owned();
-            let right = value["description"].as_str().unwrap_or("");
-            existing.as_object_mut().expect("a response").insert(
-                "description".to_owned(),
-                json!(format!("{left}\n\n{right}")),
-            );
-        }
-        None => {
-            responses.insert(key, value);
-        }
-    }
 }
 
 fn merge_definitions(

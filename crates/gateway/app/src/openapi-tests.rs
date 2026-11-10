@@ -108,7 +108,7 @@ fn every_mounted_route_is_documented_or_excluded() {
 
 #[test]
 fn every_operation_is_bound_to_the_handler_it_names() {
-    for operation in operations() {
+    for operation in operations().unwrap_or_else(|error| panic!("{error}")) {
         let mounts = source::mounts(operation.file).unwrap_or_else(|error| panic!("{error}"));
         let method = operation.method.as_str().to_ascii_lowercase();
         let bound = mounts.iter().any(|mount| {
@@ -120,6 +120,25 @@ fn every_operation_is_bound_to_the_handler_it_names() {
             bound,
             "{} {} should bind {} in {}, mounts: {mounts:?}",
             operation.method, operation.path, operation.handler, operation.file
+        );
+    }
+}
+
+/// The status an operation declares for success is in the document, including
+/// a WebSocket upgrade's `101`, which has no body to describe.
+#[test]
+fn every_operation_documents_its_success_status() {
+    let document = generated();
+    for operation in operations().unwrap_or_else(|error| panic!("{error}")) {
+        let method = operation.method.as_str().to_ascii_lowercase();
+        let status = operation.success_status.to_string();
+        assert!(
+            document["paths"][operation.path][method.as_str()]["responses"]
+                .get(&status)
+                .is_some(),
+            "{} {} documents no {status} response",
+            operation.method,
+            operation.path
         );
     }
 }

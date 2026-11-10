@@ -17,6 +17,8 @@ const PROTOCOL: &str = "crates/gateway/protocol/src/error.rs";
 const BATCH: &str = "crates/gateway/stt/api/src/batch.rs";
 const REALTIME: &str = "crates/gateway/stt/api/src/realtime/route.rs";
 const HOST: &str = "crates/shared-loopback/src/host.rs";
+const AUTH: &str = "crates/gateway/app/src/auth.rs";
+const ORIGIN: &str = "crates/shared-loopback/src/origin.rs";
 
 /// One failure a route can produce, named so the operation table can list it.
 #[derive(Clone, Copy, Debug)]
@@ -176,6 +178,20 @@ pub(super) fn realtime_responses() -> Result<Map<String, Value>, String> {
         );
     }
     Ok(responses)
+}
+
+/// The realtime handshake's `Origin` refusal, from `authorize_stt_route`: a
+/// bare 403 after authentication, described by that function's doc and by
+/// the shared Origin predicate it applies.
+pub(super) fn realtime_origin() -> Result<Value, String> {
+    let route = source::doc(AUTH, "authorize_stt_route")
+        .map_err(|error| error.message(AUTH, "authorize_stt_route"))?;
+    let rule = "gateway_loopback_origin_allowed";
+    let origin = source::doc(ORIGIN, rule).map_err(|error| error.message(ORIGIN, rule))?;
+    Ok(json!({
+        "description": format!("{route}\n\n{origin}"),
+        "x-runvil-source": format!("{AUTH}#authorize_stt_route")
+    }))
 }
 
 struct Piece {
