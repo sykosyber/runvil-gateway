@@ -212,6 +212,9 @@ async fn post_cache(
 /// Answers 200 with `{"status": "deleted", "sha256"}` when an entry was
 /// removed, 404 `cache_entry_not_found` when no sidecar records the digest,
 /// and 400 when the path parameter is not a 64-character hex digest.
+///
+/// `sha256`: The SHA-256 digest of the cached file, as `GET /v1/cache` lists
+/// it: 64 hexadecimal characters, in either case.
 async fn delete_cache(
     State(state): State<AppState>,
     _caller: AuthedCaller,

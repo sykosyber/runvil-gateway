@@ -161,7 +161,13 @@ mod secret_tests;
 #[cfg(test)]
 mod loopback_caller_tests;
 
-/// Authenticates the caller by any one of three rules, in this order.
+/// Admits the caller when one of three rules holds, checked in this order: an
+/// `Authorization: Bearer` token equal to the gateway's current key; the
+/// `runvil-gateway-session` cookie from the `/auth` browser handoff, on a
+/// request whose `Sec-Fetch-Site` is `same-origin` or `none`; or, while
+/// `[server] trust_loopback` is on (the default), a request from a loopback
+/// peer that sends no `Authorization` header and no `Sec-Fetch-Site` other
+/// than `same-origin` or `none`.
 ///
 /// 1. A presented bearer token equals the live key.
 /// 2. The `/auth` browser handoff's cookie verifies: the cookie is the

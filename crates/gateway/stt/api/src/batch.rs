@@ -77,10 +77,11 @@ struct VerboseJsonTranscription {
     pub duration: f64,
     /// The decoded transcript.
     pub text: String,
-    /// Clip-level segments when segment granularity was requested.
+    /// One segment that spans the whole clip, from 0 to `duration`, whatever
+    /// `timestamp_granularities[]` asked for.
     pub segments: Vec<TranscriptionSegment>,
-    /// Word timestamps. The speech engine produces segments only, so
-    /// this array stays empty when word granularity is requested.
+    /// Always empty: this route returns no word timestamps, even when `word`
+    /// granularity is requested.
     pub words: Vec<serde_json::Value>,
 }
 
@@ -115,6 +116,9 @@ pub(crate) fn routes(state: GenerationState) -> Router {
         .with_state(state)
 }
 
+/// Transcribes one uploaded WAV clip with a loaded speech model, in the
+/// shape of OpenAI's transcription route. The reply is `{"text"}` by
+/// default, or the `verbose_json` object when `response_format` asks for it.
 async fn handler(
     State(state): State<GenerationState>,
     multipart: Result<Multipart, MultipartRejection>,
@@ -155,6 +159,38 @@ async fn transcribe(
     Ok(axum::Json(response(&form, text, duration)).into_response())
 }
 
+/// Reads the multipart form and stops at the first field it refuses. A field
+/// with any other name is ignored. Each paragraph below opens with the name
+/// of the field it describes.
+///
+/// `file`: The audio to transcribe, as a WAV file of 16 kHz mono samples. A
+/// file over 25 MiB is refused with 413 while it is read, and any other
+/// format, sample rate, or channel count is refused with 400.
+///
+/// `model`: A speech model name that `GET /v1/models` lists: the configured
+/// interim or final model, or `realtime-transcribe`, which decodes with the
+/// final model and exists only while one is configured.
+///
+/// `language`: Optional, and accepted only as `en`, the one language the
+/// speech models transcribe. Any other value is refused with 400.
+///
+/// `prompt`: Optional comma-separated terms the decoder is biased toward,
+/// read as a term list rather than OpenAI's free-text prompt. They follow the
+/// configured `[stt] vocabulary`, and empty terms are dropped. The decoder's
+/// prompt is limited, so terms that do not fit are dropped from the end: a
+/// long list may be cut short, or dropped entirely.
+///
+/// `response_format`: `json`, the default, for `{"text"}`, or `verbose_json`
+/// for the text with its task, language, duration, and segments. Any other
+/// value, including OpenAI's `text`, `srt`, and `vtt`, is refused with 400.
+///
+/// `timestamp_granularities[]`: Repeatable, each value `word` or `segment`;
+/// any other value is refused with 400. A valid value changes nothing: a
+/// `verbose_json` reply always holds one segment for the whole clip and no
+/// word timestamps.
+///
+/// `temperature`: Validated, then not used. It must be a finite number of
+/// zero or more, or the request is refused with 400.
 async fn parse_form(mut multipart: Multipart) -> Result<TranscriptionForm, SpeechError> {
     let mut file = None;
     let mut model = None;
@@ -304,6 +340,24 @@ fn response(form: &TranscriptionForm, text: String, duration: f64) -> Transcript
     }
 }
 
+/// Answers a failed transcription with OpenAI's error envelope. Each
+/// paragraph below opens with the `code` it sends.
+///
+/// `malformed_request`: The body is not readable multipart form data, lacks
+/// `file` or `model`, holds a refused field value, or carries audio that is
+/// not a 16 kHz mono WAV. A body larger than 26 MiB, the file limit plus
+/// 1 MiB, also lands here unless the file passed its own limit first. The
+/// `message` begins `malformed request:` and then gives the reason, which is
+/// generic when reading the multipart body fails.
+///
+/// `model_not_found`: `model` names no speech model the gateway serves right
+/// now, which is every name while the speech models are not loaded.
+///
+/// `file_too_large`: The `file` field passed 25 MiB.
+///
+/// `transcription_error`: Decoding failed after every check passed, which
+/// includes a speech worker whose queue is full. The `message` is always
+/// `transcription failed`.
 fn error_response(error: &SpeechError) -> Response {
     let (status, kind, code) = if error.model_not_found().is_some() {
         (

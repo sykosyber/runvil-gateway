@@ -26,7 +26,10 @@ pub(crate) struct HealthReply {
     status: &'static str,
 }
 
-/// Liveness probe; unauthenticated and always 200 while serving.
+/// Liveness probe: answers 200 with `status` set to `serving` and needs no
+/// credential. Like every route, it answers 403 while the gateway is bound to
+/// a loopback address and the request's host is neither that address nor
+/// `localhost` on the same port.
 async fn health() -> Json<HealthReply> {
     Json(HealthReply { status: "serving" })
 }

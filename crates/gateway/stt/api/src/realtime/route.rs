@@ -130,6 +130,19 @@ pub(crate) fn routes(
         })
 }
 
+/// Opens a realtime transcription session: a WebSocket handshake to
+/// `/v1/realtime?intent=transcription` that passes authentication and the
+/// `Origin` check upgrades to the session's event stream.
+///
+/// `400`: the query string is not exactly `intent=transcription`: the
+/// parameter is missing, empty, repeated, or joined by another one. A request
+/// without WebSocket upgrade headers gets 400 before the query is checked,
+/// with a short text body.
+///
+/// `503`: no speech runtime is loaded and accepting work, or the loaded one
+/// has no final model, which a session needs.
+///
+/// `429`: the gateway already has 8 realtime sessions open, its limit.
 async fn upgrade(
     State(state): State<RouteState>,
     uri: Uri,

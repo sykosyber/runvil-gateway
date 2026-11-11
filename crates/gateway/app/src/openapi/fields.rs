@@ -1,10 +1,10 @@
-//! Extension fields that live inside a pass-through value, and the
-//! handlers whose missing docs are an explicit list rather than a failure.
+//! Extension fields that live inside a pass-through value, and the doc
+//! comments and labeled paragraphs that describe an operation's parts.
 
 use serde_json::{Value, json};
 
 use super::operations::Operation;
-use super::source::{self, DocError};
+use super::source;
 
 /// An extension that has no typed property, so the operation names it.
 pub(super) struct ExtensionField {
@@ -27,26 +27,50 @@ pub(super) enum FieldDoc {
     ModuleParagraph(&'static str),
 }
 
-/// Handlers with no doc comment. Any other missing doc fails generation.
-const UNDOCUMENTED: &[(&str, &str)] = &[
-    ("crates/gateway/stt/api/src/batch.rs", "handler"),
-    ("crates/gateway/stt/api/src/batch.rs", "error_response"),
-    ("crates/gateway/stt/api/src/realtime/route.rs", "upgrade"),
-];
-
-/// The item's doc comment, or the unspecified sentence when `UNDOCUMENTED` names it.
+/// The item's doc comment. A missing doc fails generation.
 pub(super) fn documented(file: &str, item: &str) -> Result<String, String> {
-    match source::doc(file, item) {
-        Ok(doc) => Ok(doc),
-        Err(DocError::Undocumented) if UNDOCUMENTED.contains(&(file, item)) => {
-            Ok(format!("Unspecified: `{item}` has no doc comment."))
-        }
-        Err(error) => Err(error.message(file, item)),
-    }
+    source::doc(file, item).map_err(|error| error.message(file, item))
 }
 
+/// The paragraph of `item`'s doc comment that opens with `` `label`: ``,
+/// without the label. It describes one part of the item that has no doc
+/// comment of its own: a multipart field, a path capture, an error code, or
+/// a status. A missing paragraph fails generation.
+pub(super) fn labeled_paragraph(file: &str, item: &str, label: &str) -> Result<String, String> {
+    let doc = source::doc(file, item).map_err(|error| error.message(file, item))?;
+    labeled(&doc, label)
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| format!("{file}: no paragraph of `{item}`'s doc opens with `{label}`"))
+}
+
+/// The paragraph of `doc` that opens with `` `label`: ``, without the label.
+pub(super) fn labeled<'doc>(doc: &'doc str, label: &str) -> Option<&'doc str> {
+    let prefix = format!("`{label}`: ");
+    doc.split("\n\n")
+        .find_map(|paragraph| paragraph.strip_prefix(prefix.as_str()))
+}
+
+/// The handler's doc comment without the labeled paragraphs that its path
+/// capture and its realtime refusals publish on their own.
 pub(super) fn handler_doc(operation: &Operation) -> Result<String, String> {
-    documented(operation.file, operation.handler)
+    let doc = documented(operation.file, operation.handler)?;
+    let mut labels: Vec<String> = operation
+        .path_param
+        .map(ToOwned::to_owned)
+        .into_iter()
+        .collect();
+    if operation.websocket {
+        labels.extend(super::errors::realtime_codes()?);
+    }
+    Ok(doc
+        .split("\n\n")
+        .filter(|paragraph| {
+            labels
+                .iter()
+                .all(|label| labeled(paragraph, label).is_none())
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n"))
 }
 
 pub(super) fn extension_fields(fields: &[ExtensionField]) -> Result<Vec<Value>, String> {

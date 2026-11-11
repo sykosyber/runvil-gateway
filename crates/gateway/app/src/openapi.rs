@@ -175,7 +175,7 @@ fn build_operation(
     }
     if let Some(name) = operation.path_param {
         parameters.push(json!({
-            "description": "Unspecified: the path capture has no doc comment.",
+            "description": fields::labeled_paragraph(operation.file, operation.handler, name)?,
             "in": "path",
             "name": name,
             "required": true,
@@ -303,7 +303,7 @@ fn multipart_body() -> Result<Value, String> {
         properties.insert(
             field.clone(),
             json!({
-                "description": "Unspecified: the multipart field has no doc comment.",
+                "description": fields::labeled_paragraph(file, "parse_form", field)?,
                 "type": "string"
             }),
         );

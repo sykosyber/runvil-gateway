@@ -906,7 +906,7 @@
             "type": "string"
           },
           "segments": {
-            "description": "Clip-level segments when segment granularity was requested.",
+            "description": "One segment that spans the whole clip, from 0 to `duration`, whatever\n`timestamp_granularities[]` asked for.",
             "items": {
               "$ref": "#/components/schemas/TranscriptionSegment"
             },
@@ -921,7 +921,7 @@
             "type": "string"
           },
           "words": {
-            "description": "Word timestamps. The speech engine produces segments only, so\nthis array stays empty when word granularity is requested.",
+            "description": "Always empty: this route returns no word timestamps, even when `word`\ngranularity is requested.",
             "items": {
               "x-runvil-pass-through": true
             },
@@ -1072,7 +1072,7 @@
     },
     "securitySchemes": {
       "bearer": {
-        "description": "Authenticates the caller by any one of three rules, in this order.",
+        "description": "Admits the caller when one of three rules holds, checked in this order: an\n`Authorization: Bearer` token equal to the gateway's current key; the\n`runvil-gateway-session` cookie from the `/auth` browser handoff, on a\nrequest whose `Sec-Fetch-Site` is `same-origin` or `none`; or, while\n`[server] trust_loopback` is on (the default), a request from a loopback\npeer that sends no `Authorization` header and no `Sec-Fetch-Site` other\nthan `same-origin` or `none`.",
         "scheme": "bearer",
         "type": "http"
       },
@@ -1097,7 +1097,7 @@
   "paths": {
     "/health": {
       "get": {
-        "description": "Liveness probe; unauthenticated and always 200 while serving.",
+        "description": "Liveness probe: answers 200 with `status` set to `serving` and needs no\ncredential. Like every route, it answers 403 while the gateway is bound to\na loopback address and the request's host is neither that address nor\n`localhost` on the same port.",
         "operationId": "get_health",
         "responses": {
           "200": {
@@ -1108,7 +1108,7 @@
                 }
               }
             },
-            "description": "Liveness probe; unauthenticated and always 200 while serving."
+            "description": "Liveness probe: answers 200 with `status` set to `serving` and needs no\ncredential. Like every route, it answers 403 while the gateway is bound to\na loopback address and the request's host is neither that address nor\n`localhost` on the same port."
           },
           "403": {
             "description": "Refuses any request whose authority is not the bound loopback socket\nwith `403 Forbidden`, applied through\n[`axum::middleware::from_fn_with_state`] with the bound address as the\nstate.\n\nThis is the DNS-rebinding sibling of\n[`require_loopback`](crate::require_loopback): a page on a\nrebound hostname reaches a loopback server with same-origin fetch\nmetadata, but its requests still have the attacker's name as the\nauthority, the one signal rebinding cannot forge. While the server is\nbound to a loopback address, the only admitted authorities are the\nsocket's literal form (`127.0.0.1:port` or `[::1]:port`) and\n`localhost:port` - plus the port-elided bare forms on a port-80 bind,\nsince http clients omit the default port. A server bound to a\nnon-loopback address has no\nloopback allowlist to enforce, so every request passes: the operator\nchose network exposure, and refusing non-loopback authorities would\nbreak the very clients that bind exists for.\n\nThe URI authority (HTTP/2, absolute-form) wins over the `Host` header.\nA request naming no authority at all fails closed with `403 Forbidden`:\nbrowsers, the application's HTTP clients, and the gateway-discovery-file\nhealth probe all send the bound address as `Host`, so an authority-less\nrequest is nothing the wall was built to admit. No route is exempt,\n`/health` included, which keeps the probe honest against the same check\na browser must pass.",
@@ -1332,7 +1332,7 @@
     },
     "/v1/audio/transcriptions": {
       "post": {
-        "description": "Unspecified: `handler` has no doc comment.",
+        "description": "Transcribes one uploaded WAV clip with a loaded speech model, in the\nshape of OpenAI's transcription route. The reply is `{\"text\"}` by\ndefault, or the `verbose_json` object when `response_format` asks for it.",
         "operationId": "post_v1_audio_transcriptions",
         "requestBody": {
           "content": {
@@ -1340,31 +1340,31 @@
               "schema": {
                 "properties": {
                   "file": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "The audio to transcribe, as a WAV file of 16 kHz mono samples. A\nfile over 25 MiB is refused with 413 while it is read, and any other\nformat, sample rate, or channel count is refused with 400.",
                     "type": "string"
                   },
                   "language": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "Optional, and accepted only as `en`, the one language the\nspeech models transcribe. Any other value is refused with 400.",
                     "type": "string"
                   },
                   "model": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "A speech model name that `GET /v1/models` lists: the configured\ninterim or final model, or `realtime-transcribe`, which decodes with the\nfinal model and exists only while one is configured.",
                     "type": "string"
                   },
                   "prompt": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "Optional comma-separated terms the decoder is biased toward,\nread as a term list rather than OpenAI's free-text prompt. They follow the\nconfigured `[stt] vocabulary`, and empty terms are dropped. The decoder's\nprompt is limited, so terms that do not fit are dropped from the end: a\nlong list may be cut short, or dropped entirely.",
                     "type": "string"
                   },
                   "response_format": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "`json`, the default, for `{\"text\"}`, or `verbose_json`\nfor the text with its task, language, duration, and segments. Any other\nvalue, including OpenAI's `text`, `srt`, and `vtt`, is refused with 400.",
                     "type": "string"
                   },
                   "temperature": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "Validated, then not used. It must be a finite number of\nzero or more, or the request is refused with 400.",
                     "type": "string"
                   },
                   "timestamp_granularities[]": {
-                    "description": "Unspecified: the multipart field has no doc comment.",
+                    "description": "Repeatable, each value `word` or `segment`;\nany other value is refused with 400. A valid value changes nothing: a\n`verbose_json` reply always holds one segment for the whole clip and no\nword timestamps.",
                     "type": "string"
                   }
                 },
@@ -1387,7 +1387,7 @@
                 }
               }
             },
-            "description": "Unspecified: `handler` has no doc comment."
+            "description": "Transcribes one uploaded WAV clip with a loaded speech model, in the\nshape of OpenAI's transcription route. The reply is `{\"text\"}` by\ndefault, or the `verbose_json` object when `response_format` asks for it."
           },
           "400": {
             "content": {
@@ -1397,7 +1397,7 @@
                 }
               }
             },
-            "description": "Unspecified: `error_response` has no doc comment.",
+            "description": "The body is not readable multipart form data, lacks\n`file` or `model`, holds a refused field value, or carries audio that is\nnot a 16 kHz mono WAV. A body larger than 26 MiB, the file limit plus\n1 MiB, also lands here unless the file passed its own limit first. The\n`message` begins `malformed request:` and then gives the reason, which is\ngeneric when reading the multipart body fails.",
             "x-runvil-error-codes": [
               "malformed_request"
             ],
@@ -1431,7 +1431,7 @@
                 }
               }
             },
-            "description": "Unspecified: `error_response` has no doc comment.",
+            "description": "`model` names no speech model the gateway serves right\nnow, which is every name while the speech models are not loaded.",
             "x-runvil-error-codes": [
               "model_not_found"
             ],
@@ -1448,7 +1448,7 @@
                 }
               }
             },
-            "description": "Unspecified: `error_response` has no doc comment.",
+            "description": "The `file` field passed 25 MiB.",
             "x-runvil-error-codes": [
               "file_too_large"
             ],
@@ -1465,7 +1465,7 @@
                 }
               }
             },
-            "description": "Unspecified: `error_response` has no doc comment.",
+            "description": "Decoding failed after every check passed, which\nincludes a speech worker whose queue is full. The `message` is always\n`transcription failed`.",
             "x-runvil-error-codes": [
               "transcription_error"
             ],
@@ -1713,7 +1713,7 @@
         "operationId": "delete_v1_cache_sha256",
         "parameters": [
           {
-            "description": "Unspecified: the path capture has no doc comment.",
+            "description": "The SHA-256 digest of the cached file, as `GET /v1/cache` lists\nit: 64 hexadecimal characters, in either case.",
             "in": "path",
             "name": "sha256",
             "required": true,
@@ -2210,7 +2210,7 @@
     },
     "/v1/realtime": {
       "get": {
-        "description": "Unspecified: `upgrade` has no doc comment.",
+        "description": "Opens a realtime transcription session: a WebSocket handshake to\n`/v1/realtime?intent=transcription` that passes authentication and the\n`Origin` check upgrades to the session's event stream.",
         "operationId": "get_v1_realtime",
         "parameters": [
           {
@@ -2232,7 +2232,7 @@
             "x-runvil-source": "crates/gateway/stt/api/src/realtime/route.rs#upgrade"
           },
           "400": {
-            "description": "No body: the handler returns the status alone. Unspecified: `upgrade` has no doc comment.",
+            "description": "No body when the query string is not exactly `intent=transcription`: the\nparameter is missing, empty, repeated, or joined by another one. A request\nwithout WebSocket upgrade headers gets 400 before the query is checked,\nwith a short text body.",
             "x-runvil-source": "crates/gateway/stt/api/src/realtime/route.rs#upgrade"
           },
           "401": {
@@ -2256,11 +2256,11 @@
             ]
           },
           "429": {
-            "description": "No body: the handler returns the status alone. Unspecified: `upgrade` has no doc comment.",
+            "description": "No body when the gateway already has 8 realtime sessions open, its limit.",
             "x-runvil-source": "crates/gateway/stt/api/src/realtime/route.rs#upgrade"
           },
           "503": {
-            "description": "No body: the handler returns the status alone. Unspecified: `upgrade` has no doc comment.",
+            "description": "No body when no speech runtime is loaded and accepting work, or the loaded one\nhas no final model, which a session needs.",
             "x-runvil-source": "crates/gateway/stt/api/src/realtime/route.rs#upgrade"
           }
         },

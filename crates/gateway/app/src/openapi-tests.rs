@@ -6,6 +6,7 @@ use axum::http::Method;
 
 use super::document;
 use super::exclusions::{Reason, active_exclusions, full_feature_build};
+use super::fields::labeled;
 use super::operations::operations;
 use super::render::{self, diff};
 use super::source;
@@ -161,6 +162,86 @@ fn the_multipart_fields_match_parse_form() {
     let mut parsed = fields;
     parsed.sort();
     assert_eq!(documented, parsed, "a multipart field was added or dropped");
+}
+
+#[test]
+fn a_labeled_paragraph_is_found_only_at_the_start_of_a_paragraph() {
+    let doc = "Intro.\n\n`file`: The audio,\nover two lines.\n\nSee `model`: here.";
+    assert_eq!(labeled(doc, "file"), Some("The audio,\nover two lines."));
+    assert_eq!(labeled(doc, "model"), None, "a label inside a paragraph");
+    assert_eq!(labeled(doc, "prompt"), None, "an absent label");
+}
+
+/// A multipart field, a path capture, a batch error code, and a realtime
+/// refusal are each described by their labeled paragraph, never a fallback.
+/// A paragraph the handler's own doc lends to a part is not repeated in the
+/// operation's description or its success description.
+#[cfg(any(feature = "local", feature = "stt"))]
+#[test]
+fn parts_without_their_own_doc_are_described_by_labeled_paragraphs() {
+    use super::fields::labeled_paragraph;
+    let document = generated();
+    #[cfg(feature = "local")]
+    {
+        let cache = "crates/gateway/app/src/cache.rs";
+        let delete = &document["paths"]["/v1/cache/{sha256}"]["delete"];
+        let parameter = &delete["parameters"][0];
+        assert_eq!(parameter["name"], "sha256");
+        let paragraph = labeled_paragraph(cache, "delete_cache", "sha256")
+            .unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(parameter["description"].as_str(), Some(paragraph.as_str()));
+        for text in [
+            &delete["description"],
+            &delete["responses"]["200"]["description"],
+        ] {
+            let text = text.as_str().expect("text");
+            assert!(!text.contains(&paragraph), "`sha256` repeated: {text}");
+        }
+    }
+    #[cfg(feature = "stt")]
+    {
+        let batch = "crates/gateway/stt/api/src/batch.rs";
+        let post = &document["paths"]["/v1/audio/transcriptions"]["post"];
+        let properties =
+            post["requestBody"]["content"]["multipart/form-data"]["schema"]["properties"]
+                .as_object()
+                .expect("multipart properties");
+        for (field, schema) in properties {
+            let expected = labeled_paragraph(batch, "parse_form", field);
+            assert_eq!(
+                schema["description"].as_str(),
+                expected.ok().as_deref(),
+                "{field}"
+            );
+        }
+        for status in ["400", "404", "413", "500"] {
+            let response = &post["responses"][status];
+            let code = response["x-runvil-error-codes"][0]
+                .as_str()
+                .expect("a code");
+            let expected = labeled_paragraph(batch, "error_response", code);
+            assert_eq!(
+                response["description"].as_str(),
+                expected.ok().as_deref(),
+                "{status}"
+            );
+        }
+        let realtime = "crates/gateway/stt/api/src/realtime/route.rs";
+        let get = &document["paths"]["/v1/realtime"]["get"];
+        let operation = get["description"].as_str().expect("text");
+        for status in ["400", "429", "503"] {
+            let paragraph = labeled_paragraph(realtime, "upgrade", status)
+                .unwrap_or_else(|error| panic!("{error}"));
+            let description = get["responses"][status]["description"]
+                .as_str()
+                .expect("text");
+            assert!(description.ends_with(&paragraph), "{status}: {description}");
+            assert!(
+                !operation.contains(&paragraph),
+                "`{status}` repeated: {operation}"
+            );
+        }
+    }
 }
 
 #[test]

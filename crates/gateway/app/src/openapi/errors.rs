@@ -138,13 +138,14 @@ pub(super) fn host_wall() -> Result<Value, String> {
 }
 
 /// The batch route's statuses, parsed from `error_response` so a new arm
-/// shows up here instead of being skipped.
+/// shows up here instead of being skipped. Each is described by the
+/// paragraph of `error_response`'s doc that opens with its code.
 pub(super) fn batch_responses() -> Result<Map<String, Value>, String> {
     let triples = batch_triples()?;
     let mut responses = object();
     for (status, kind, code) in triples {
         let key = status_name_to_code(&status)?;
-        let description = super::fields::documented(BATCH, "error_response")?;
+        let description = super::fields::labeled_paragraph(BATCH, "error_response", &code)?;
         responses.insert(
             key,
             json!({
@@ -159,20 +160,26 @@ pub(super) fn batch_responses() -> Result<Map<String, Value>, String> {
     Ok(responses)
 }
 
+/// The numeric statuses the realtime `upgrade` function returns alone.
+pub(super) fn realtime_codes() -> Result<Vec<String>, String> {
+    status_names(REALTIME, "upgrade")?
+        .into_iter()
+        .map(|name| status_name_to_code(&name))
+        .collect()
+}
+
 /// The realtime upgrade's pre-upgrade refusals: each `StatusCode` the
-/// function returns alone, which is an empty body.
+/// function returns alone, which is an empty body. Each is described as
+/// `No body when` followed by the paragraph of `upgrade`'s doc that opens
+/// with the numeric status, so that paragraph scopes the empty body.
 pub(super) fn realtime_responses() -> Result<Map<String, Value>, String> {
-    let names = status_names(REALTIME, "upgrade")?;
     let mut responses = object();
-    for name in names {
-        let key = status_name_to_code(&name)?;
+    for key in realtime_codes()? {
+        let paragraph = super::fields::labeled_paragraph(REALTIME, "upgrade", &key)?;
         responses.insert(
             key,
             json!({
-                "description": format!(
-                    "No body: the handler returns the status alone. {}",
-                    super::fields::documented(REALTIME, "upgrade")?
-                ),
+                "description": format!("No body when {paragraph}"),
                 "x-runvil-source": format!("{REALTIME}#upgrade")
             }),
         );

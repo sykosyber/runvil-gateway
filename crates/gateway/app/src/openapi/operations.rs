@@ -30,7 +30,8 @@ pub(super) struct Content {
     pub doc: Option<(&'static str, &'static str)>,
     /// Component names of the JSON events inside an SSE body.
     pub events: &'static [&'static str],
-    /// The body is `multipart/form-data`, described from `parse_form`'s arms.
+    /// The body is `multipart/form-data`, read from `parse_form`'s arms and
+    /// described by its doc's paragraph for each field.
     pub multipart: bool,
 }
 
@@ -68,7 +69,8 @@ pub(super) struct Operation {
     pub success_status: u16,
     /// The failures the handler can return.
     pub errors: &'static [Variant],
-    /// A path capture with no doc comment of its own.
+    /// A path capture, described by the paragraph of the handler's doc that
+    /// opens with its name.
     pub path_param: Option<&'static str>,
 }
 
