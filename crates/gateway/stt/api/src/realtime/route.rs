@@ -113,13 +113,16 @@ impl RoutePolicy {
     }
 }
 
+/// The realtime transcription route's path.
+pub const REALTIME_PATH: &str = "/v1/realtime";
+
 pub(crate) fn routes(
     generation: GenerationState,
     sessions: SessionRegistry,
     policy: RoutePolicy,
 ) -> Router {
     Router::new()
-        .route("/v1/realtime", get(upgrade))
+        .route(REALTIME_PATH, get(upgrade))
         .with_state(RouteState {
             generation,
             sessions,
